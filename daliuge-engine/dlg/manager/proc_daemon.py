@@ -74,7 +74,6 @@ class DlgDaemon(RestServer):
 
         self._shutting_down = False
         self._verbosity = verbosity
-
         # The three processes we run
         self._nm_proc = None
         self._dim_proc = None
@@ -84,6 +83,7 @@ class DlgDaemon(RestServer):
         self._zeroconf = None if disable_zeroconf else zc.Zeroconf()
         self._nm_info = None
         self._mm_browser = None
+        self._mm_dim_browser = None
 
         # Starting managers
         app = self.app
@@ -128,6 +128,9 @@ class DlgDaemon(RestServer):
         if self._mm_browser:
             self._mm_browser.cancel()
             self._mm_browser.join()
+        if self._mm_dim_browser:
+            self._mm_dim_browser.cancel()
+            self._mm_dim_browser.join()
         self._zeroconf.close()
         logger.info("Zeroconf stopped")
 
@@ -207,6 +210,19 @@ class DlgDaemon(RestServer):
         logger.info(
             "Started Data Island Drop Manager with PID %d" % (self._dim_proc.pid)
         )
+
+        # Registering the new DIM via zeroconf so it gets discovered
+        # by the Master Manager
+        if self._zeroconf:
+            addrs = utils.get_local_ip_addr()
+            logger.info("Registering this DIM with zeroconf: %s" % addrs)
+            self._nm_info = utils.register_service(
+                self._zeroconf,
+                "DIM",
+                socket.gethostname(),
+                addrs[0][0],
+                constants.ISLAND_DEFAULT_REST_PORT,
+            )
         return
 
     def startMM(self):
@@ -222,6 +238,7 @@ class DlgDaemon(RestServer):
         if self._zeroconf:
             mm_client = client.MasterManagerClient()
             node_managers = {}
+            dims = {}
 
             def nm_callback(zeroconf, service_type, name, state_change):
                 info = zeroconf.get_service_info(service_type, name)
@@ -250,8 +267,38 @@ class DlgDaemon(RestServer):
                         finally:
                             del node_managers[name]
 
+            def dim_callback(zeroconf, service_type, name, state_change):
+                info = zeroconf.get_service_info(service_type, name)
+                if state_change is zc.ServiceStateChange.Added:
+                    server = socket.inet_ntoa(_get_address(info))
+                    port = info.port
+                    dims[name] = (server, port)
+                    logger.info(
+                        "Found a new Data Island Manager on %s:%d, will add it to the MM"
+                        % (server, port)
+                    )
+                    mm_client.add_dim(server)
+                elif state_change is zc.ServiceStateChange.Removed:
+                    server, port = dims[name]
+                    logger.info(
+                        "Data Island Manager on %s:%d disappeared, removing it from the MM"
+                        % (server, port)
+                    )
+
+                    # Don't bother to remove it if we're shutting down. This way
+                    # we avoid hanging in here if the MM is down already but
+                    # we are trying to remove our NM who has just disappeared
+                    if not self._shutting_down:
+                        try:
+                            mm_client.remove_dim(server)
+                        finally:
+                            del dims[name]
+
             self._mm_browser = utils.browse_service(
                 self._zeroconf, "NodeManager", "tcp", nm_callback
+            )
+            self._mm_dim_browser = utils.browse_service(
+                self._zeroconf, "DIM", "tcp", dim_callback  # DIM since name must be < 15 bytes
             )
             logger.info("Zeroconf started")
             return

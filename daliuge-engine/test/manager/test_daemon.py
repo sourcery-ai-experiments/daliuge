@@ -128,21 +128,38 @@ class TestDaemon(unittest.TestCase):
             "MasterManager didn't find the NodeManager running on the same node",
         )
 
-    def test_zeroconf_dim_mm(self):
-
+    def _test_zeroconf_dim_mm(self, disable_zeroconf=False):
         # Start daemon with no master and no NM
-        self.create_daemon(master=False, noNM=True, disable_zeroconf=False)
+        self.create_daemon(master=False, noNM=True, disable_zeroconf=disable_zeroconf)
         # Start DIM - now, on it's own
         self._start("island", http.HTTPStatus.OK, {"nodes": []})
         # Start daemon with master but no NM
         self._start("master", http.HTTPStatus.OK)
         # Check that dim registers to MM
-        dims = self._get_dims_from_master(_TIMEOUT)
+        timeout_time = time.time() + _TIMEOUT
+        dims = None
+        while time.time() < timeout_time:
+            dims = self._get_dims_from_master(_TIMEOUT)
+            if len(dims['islands']) > 0:
+                break
+            time.sleep(0.1)
         self.assertIsNotNone(dims)
+        return dims
+
+    def test_zeroconf_dim_mm(self):
+        dims = self._test_zeroconf_dim_mm(disable_zeroconf=False)
         self.assertEqual(
             1,
             len(dims['islands']),
-            "MasterManager didn't find the DataIslandManager running on the same node",
+            "MasterManager didn't find the DataIslandManager with zeroconf",
+        )
+
+    def test_without_zeroconf_dim_mm(self):
+        dims = self._test_zeroconf_dim_mm(disable_zeroconf=True)
+        self.assertEqual(
+            0,
+            len(dims['islands']),
+            "MasterManager found the DataIslandManager without zeroconf!?",
         )
 
     def test_start_dataisland_via_rest(self):
@@ -249,7 +266,6 @@ class TestDaemon(unittest.TestCase):
             len(dims['islands']),
             "MasterManager didn't find the DataIslandManager running on the same node",
         )
-
 
     def _start(self, manager_name, expected_code, payload=None):
         conn = http.client.HTTPConnection("localhost", 9000)
