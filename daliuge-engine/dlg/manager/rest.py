@@ -576,9 +576,10 @@ class CompositeManagerRestServer(ManagerRestServer):
 class MasterManagerRestServer(CompositeManagerRestServer):
     def initializeSpecifics(self, app):
         CompositeManagerRestServer.initializeSpecifics(self, app)
-
+        # DIM manamagement
+        app.post("/api/islands/<dim>", callback=self.addDIM)
+        app.delete("/api/islands/<dim>", callback=self.removeDIM)
         # Query forwarding to daemons
-
         app.post("/api/managers/<host>/dataisland", callback=self.createDataIsland)
         app.post("/api/managers/<host>/node/start", callback=self.startNM)
         app.post("/api/managers/<host>/node/stop", callback=self.stopNM)
@@ -600,6 +601,16 @@ class MasterManagerRestServer(CompositeManagerRestServer):
     @daliuge_aware
     def getDIMs(self):
         return {"islands": self.dm.dmHosts}
+
+    @daliuge_aware
+    def addDIM(self, dim):
+        logger.debug("Adding DIM %s" % dim)
+        self.dm.addDmHost(dim)
+
+    @daliuge_aware
+    def removeDIM(self, dim):
+        logger.debug("Removing dim %s" % dim)
+        self.dm.removeDmHost(dim)
 
     @daliuge_aware
     def getNMs(self):
