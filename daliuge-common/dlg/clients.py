@@ -280,3 +280,6 @@ class MasterManagerClient(CompositeManagerClient):
         self._post_json(
             "/managers/%s/dataisland" % (quote(island_host)), {"nodes": nodes}
         )
+
+    def dims(self):
+        return self._get_json("/islands")

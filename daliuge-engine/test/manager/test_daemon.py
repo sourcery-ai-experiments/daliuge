@@ -27,7 +27,7 @@ import unittest
 
 from dlg import utils, restutils
 from dlg.manager import constants
-from dlg.manager.client import MasterManagerClient
+from dlg.manager.client import MasterManagerClient, DataIslandManagerClient
 from dlg.manager.proc_daemon import DlgDaemon
 from six.moves import http_client as httplib  # @UnresolvedImport
 
@@ -128,6 +128,28 @@ class TestDaemon(unittest.TestCase):
             "MasterManager didn't find the NodeManager running on the same node",
         )
 
+    def test_zeroconf_dim_mm(self):
+
+        self.create_daemon(master=True, noNM=True, disable_zeroconf=False)
+
+        # Check that the DataIsland starts with no nodes
+        self._start("island", http.HTTPStatus.OK, {"nodes": []})
+        # Both managers started fine. If they zeroconf themselves correctly then
+        # if we query the MM it should know about its nodes, which should have
+        # one element
+        nodes = self._get_nodes_from_dim(_TIMEOUT)
+        self.assertIsNotNone(nodes)
+        self.assertEqual(
+            1,
+            len(nodes),
+            "DIM didn't find the NodeManager running on the same node",
+        )
+
+        self.assertTrue(
+            utils.portIsOpen("localhost", constants.ISLAND_DEFAULT_REST_PORT, _TIMEOUT),
+            "The DIM did not start successfully",
+        )
+
     def test_start_dataisland_via_rest(self):
 
         self.create_daemon(master=True, noNM=False, disable_zeroconf=False)
@@ -222,6 +244,19 @@ class TestDaemon(unittest.TestCase):
             "The MM did not stop successfully",
         )
 
+    def test_get_dims(self):
+        self.create_daemon(master=True, noNM=True, disable_zeroconf=False)
+        # Check that the DataIsland starts with the given nodes
+        self._start("island", http.HTTPStatus.OK)
+        dims = self._get_dims_from_master(_TIMEOUT)
+        self.assertIsNotNone(dims)
+        self.assertEqual(
+            1,
+            len(dims),
+            "MasterManager didn't find the DataIslandManager running on the same node",
+        )
+
+
     def _start(self, manager_name, expected_code, payload=None):
         conn = http.client.HTTPConnection("localhost", 9000)
         headers = {}
@@ -253,11 +288,27 @@ class TestDaemon(unittest.TestCase):
         response.close()
         conn.close()
 
+    def _get_nodes_from_client(self, timeout, client):
+        timeout_time = time.time() + timeout
+        while time.time() < timeout_time:
+            nodes = client.nodes()
+            if nodes:
+                return nodes
+            time.sleep(0.1)
+
     def _get_nodes_from_master(self, timeout):
+        mc = MasterManagerClient()
+        return self._get_nodes_from_client(timeout, mc)
+
+    def _get_nodes_from_dim(self, timeout):
+        dimc = DataIslandManagerClient()
+        return self._get_nodes_from_client(timeout, dimc)
+
+    def _get_dims_from_master(self, timeout):
         mc = MasterManagerClient()
         timeout_time = time.time() + timeout
         while time.time() < timeout_time:
-            nodes = mc.nodes()
-            if nodes:
-                return nodes
+            dims = mc.dims()
+            if dims:
+                return dims
             time.sleep(0.1)
