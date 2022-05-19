@@ -130,24 +130,19 @@ class TestDaemon(unittest.TestCase):
 
     def test_zeroconf_dim_mm(self):
 
-        self.create_daemon(master=True, noNM=True, disable_zeroconf=False)
-
-        # Check that the DataIsland starts with no nodes
+        # Start daemon with no master and no NM
+        self.create_daemon(master=False, noNM=True, disable_zeroconf=False)
+        # Start DIM - now, on it's own
         self._start("island", http.HTTPStatus.OK, {"nodes": []})
-        # Both managers started fine. If they zeroconf themselves correctly then
-        # if we query the MM it should know about its nodes, which should have
-        # one element
-        nodes = self._get_nodes_from_dim(_TIMEOUT)
-        self.assertIsNotNone(nodes)
+        # Start daemon with master but no NM
+        self._start("master", http.HTTPStatus.OK)
+        # Check that dim registers to MM
+        dims = self._get_dims_from_master(_TIMEOUT)
+        self.assertIsNotNone(dims)
         self.assertEqual(
             1,
-            len(nodes),
-            "DIM didn't find the NodeManager running on the same node",
-        )
-
-        self.assertTrue(
-            utils.portIsOpen("localhost", constants.ISLAND_DEFAULT_REST_PORT, _TIMEOUT),
-            "The DIM did not start successfully",
+            len(dims['islands']),
+            "MasterManager didn't find the DataIslandManager running on the same node",
         )
 
     def test_start_dataisland_via_rest(self):
@@ -247,12 +242,11 @@ class TestDaemon(unittest.TestCase):
     def test_get_dims(self):
         self.create_daemon(master=True, noNM=True, disable_zeroconf=False)
         # Check that the DataIsland starts with the given nodes
-        self._start("island", http.HTTPStatus.OK)
         dims = self._get_dims_from_master(_TIMEOUT)
         self.assertIsNotNone(dims)
         self.assertEqual(
-            1,
-            len(dims),
+            0,
+            len(dims['islands']),
             "MasterManager didn't find the DataIslandManager running on the same node",
         )
 
