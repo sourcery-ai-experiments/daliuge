@@ -162,18 +162,8 @@ class TestDaemon(unittest.TestCase):
             "MasterManager found the DataIslandManager without zeroconf!?",
         )
 
-    def test_zeroconf_dim_nm_setup(self):
-        """
-        Sets up a mm with a node manager
-        Sets up a DIM with zeroconf discovery
-        Asserts that the mm attaches the nm to the discovered dim
-        """
-        # Start daemon with no master but a M
-        self.create_daemon(master=False, noNM=False, disable_zeroconf=False)
-        # Start DIM - now, on it's own
-        self._start("island", http.HTTPStatus.OK, {"nodes": []})
-        # Start daemon with master but no NM
-        self._start("master", http.HTTPStatus.OK)
+    def _add_zeroconf_nm(self):
+        self._start("node", http.HTTPStatus.OK)
         timeout_time = time.time() + _TIMEOUT
         nodes = None
         while time.time() < timeout_time:
@@ -181,27 +171,35 @@ class TestDaemon(unittest.TestCase):
             if nodes is not None and len(nodes) > 0:
                 break
             time.sleep(0.1)
-        self.assertIsNotNone(nodes)
+        return nodes
 
-    @unittest.skip("Unimplemented")
-    def test_zeroconf_dim_nm_nm_setup(self):
+    def test_zeroconf_dim_nm_setup(self):
         """
         Sets up a mm with a node manager
         Sets up a DIM with zeroconf discovery
-        Sets up an additional node manager
-        Asserts that the mm attaches both nms to the discovered dim
+        Asserts that the mm attaches the nm to the discovered dim
         """
-        self.fail("Unimplemented")
+        self._test_zeroconf_dim_mm(disable_zeroconf=False)
+        nodes = self._add_zeroconf_nm()
+        self.assertIsNotNone(nodes)
 
-    @unittest.skip("Unimplemented")
-    def test_zeroconf_dim_dim_nm_nm_setup(self):
-        """
-        Sets up a mm
-        Sets up two DIMs with zeroconf discovery
-        Sets up two NMs
-        Asserts that each DIM received one NM
-        """
-        self.fail("Unimplemented")
+    def test_without_zeroconf_dim_nm_setup(self):
+        self._test_zeroconf_dim_mm(disable_zeroconf=True)
+        nodes = self._add_zeroconf_nm()
+        self.assertIsNone(nodes)
+
+    def test_zeroconf_nm_down(self):
+        self._test_zeroconf_dim_mm(disable_zeroconf=False)
+        nodes = self._add_zeroconf_nm()
+        self.assertIsNotNone(nodes)
+        self._stop("node", http.HTTPStatus.OK)
+        timeout_time = time.time() + _TIMEOUT
+        while time.time() < timeout_time:
+            nodes = self._get_nodes_from_dim(_TIMEOUT)
+            if nodes is None:
+                break
+            time.sleep(0.1)
+        self.assertIsNone(nodes)
 
     def test_start_dataisland_via_rest(self):
 
