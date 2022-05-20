@@ -5,7 +5,6 @@ logger = logging.getLogger(__name__)
 
 
 class NMAssigner:
-
     def __init__(self):
         self.DIMs = {}  # Set of DIMs   name -> (server, port)
         self.NMs = {}  # Set of NMs     name -> (server, port)

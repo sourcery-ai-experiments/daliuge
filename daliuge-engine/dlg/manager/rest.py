@@ -637,7 +637,11 @@ class MasterManagerRestServer(CompositeManagerRestServer):
         port = constants.ISLAND_DEFAULT_REST_PORT
         logger.debug("Adding NM %s to DIM %s" % (node, host))
         with RestClient(host=host, port=port, timeout=10, url_prefix="/api") as c:
-            return json.loads(c._POST("/nodes/%s" % (node,),).read())
+            return json.loads(
+                c._POST(
+                    "/nodes/%s" % (node,),
+                ).read()
+            )
 
     @daliuge_aware
     def removeNM(self, host, node):

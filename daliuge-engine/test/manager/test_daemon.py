@@ -140,7 +140,7 @@ class TestDaemon(unittest.TestCase):
         dims = None
         while time.time() < timeout_time:
             dims = self._get_dims_from_master(_TIMEOUT)
-            if dims is not None and len(dims['islands']) > 0:
+            if dims is not None and len(dims["islands"]) > 0:
                 break
             time.sleep(0.1)
         self.assertIsNotNone(dims)
@@ -150,7 +150,7 @@ class TestDaemon(unittest.TestCase):
         dims = self._test_zeroconf_dim_mm(disable_zeroconf=False)
         self.assertEqual(
             1,
-            len(dims['islands']),
+            len(dims["islands"]),
             "MasterManager didn't find the DataIslandManager with zeroconf",
         )
 
@@ -158,7 +158,7 @@ class TestDaemon(unittest.TestCase):
         dims = self._test_zeroconf_dim_mm(disable_zeroconf=True)
         self.assertEqual(
             0,
-            len(dims['islands']),
+            len(dims["islands"]),
             "MasterManager found the DataIslandManager without zeroconf!?",
         )
 
@@ -302,7 +302,7 @@ class TestDaemon(unittest.TestCase):
         self.assertIsNotNone(dims)
         self.assertEqual(
             0,
-            len(dims['islands']),
+            len(dims["islands"]),
             "MasterManager didn't find the DataIslandManager running on the same node",
         )
 
