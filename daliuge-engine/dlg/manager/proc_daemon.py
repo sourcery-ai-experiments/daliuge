@@ -289,7 +289,10 @@ class DlgDaemon(RestServer):
                 self._zeroconf, "NodeManager", "tcp", nm_callback
             )
             self._mm_dim_browser = utils.browse_service(
-                self._zeroconf, "DIM", "tcp", dim_callback  # DIM since name must be < 15 bytes
+                self._zeroconf,
+                "DIM",
+                "tcp",
+                dim_callback,  # DIM since name must be < 15 bytes
             )
             logger.info("Zeroconf started")
             return
