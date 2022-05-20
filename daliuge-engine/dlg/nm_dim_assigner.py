@@ -5,6 +5,13 @@ logger = logging.getLogger(__name__)
 
 
 class NMAssigner:
+    """
+    Handles the logic of assigning / removing NMs from DIMs && handling new DIMs coming on/off-line.
+    Maintains a leger of DIMs and NMs as name -> (server, port) mappings.
+    Maintains a mapping of NMs to DIMs
+    Allocation logic is currently very simple, handling only the case of a single DIM, but with
+    room for more advanced load-balancing, if we require in the future.
+    """
     def __init__(self):
         self.DIMs = {}  # Set of DIMs   name -> (server, port)
         self.NMs = {}  # Set of NMs     name -> (server, port)
@@ -60,4 +67,5 @@ class NMAssigner:
                     self.assignments[nm] = dim_ip
         else:  # We have lots of DIMs
             # Will do nothing, it's up to the user/deployer to handle this.
+            logger.info("Multiple DIMs, handle node assignments externally.")
             pass
