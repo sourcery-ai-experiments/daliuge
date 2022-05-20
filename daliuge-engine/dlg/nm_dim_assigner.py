@@ -25,8 +25,10 @@ class NMAssigner:
     def remove_dim(self, name):
         server, port = self.DIMs[name]
         try:
+            for nm in self.NMs:
+                if self.assignments[nm] == server:
+                    del self.assignments[nm]
             self.mm_client.remove_dim(server)
-            # TODO: Handle removing assignments
         finally:
             del self.DIMs[name]
         return server, port
@@ -34,26 +36,29 @@ class NMAssigner:
     def remove_nm(self, name):
         server, _ = self.NMs[name]
         try:
+            if name in self.assignments:
+                dim_ip = self.assignments[name]
+                nm_ip = self.NMs[name][0]
+                self.mm_client.remove_node_from_dim(dim_ip, nm_ip)
             self.mm_client.remove_node(server)
-            # TODO: Handle removing assignments
         finally:
             del self.NMs[name]
 
     def allocate_nms(self):
         if self.DIMs == {}:
-            for nm in self.assignments:
-                logger.info("Letting NM %s know they have no DIM", nm)
-                pass  # TODO: let NMs know they have no DIM
+            logger.info("We have no DIMs")
         elif len(self.DIMs.keys()) == 1:
-            dim = list(self.DIMs.keys())[0]
-            for nm in self.NMs.keys():
+            dim_ip = list(self.DIMs.values())[0][0]  # IP of the first (only) DIM
+            for nm in self.NMs:
+                nm_ip = self.NMs[nm][0]
                 if nm not in self.assignments:
-                    logger.info("Adding NM %s to DIM %s", nm, dim)
-                    # TODO: Actually add the mn
-                    pass
+                    logger.info("Adding NM %s to DIM %s", nm_ip, dim_ip)
+                    self.mm_client.add_node_to_dim(dim_ip, nm_ip)
+                    self.assignments[nm] = dim_ip
                 elif self.assignments[nm] not in self.DIMs:  # If we've removed a DIM
-                    logger.info("Re-assigning %s to DIM %s", nm, dim)
-                    # TODO: Actually re-assign the dim
+                    logger.info("Re-assigning %s to DIM %s", nm_ip, dim_ip)
+                    self.mm_client.add_node_to_dim(dim_ip, nm_ip)
+                    self.assignments[nm] = dim_ip
         else:  # We have lots of DIMs
             # Will do nothing, it's up to the user/deployer to handle this.
             pass
