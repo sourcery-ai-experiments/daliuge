@@ -289,3 +289,15 @@ class MasterManagerClient(CompositeManagerClient):
 
     def remove_dim(self, dim):
         self._DELETE("/islands/%s" % (dim,))
+
+    def add_node_to_dim(self, dim, nm):
+        """
+        Adds a nm to a dim
+        """
+        self._POST("managers/%s/nodes/%s" % (dim, nm, ), content=None)
+
+    def remove_node_from_dim(self, dim, nm):
+        """
+        Removes a nm from a dim
+        """
+        self._DELETE("managers/%s/nodes/%s" % (dim, nm, ))
